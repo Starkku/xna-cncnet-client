@@ -76,7 +76,7 @@ namespace DTAClient.DXGUI.Multiplayer
                 gap, chkBoxHideIncompatibleGames.Y + UIDesignConstants.BUTTON_HEIGHT + gap,
                 40, UIDesignConstants.BUTTON_HEIGHT
             );
-            for (var i = minPlayerCount; i <= maxPlayerCount; i++)
+            for (int i = minPlayerCount; i <= maxPlayerCount; i++)
             {
                 ddMaxPlayerCount.AddItem(i.ToString());
             }
@@ -136,7 +136,7 @@ namespace DTAClient.DXGUI.Multiplayer
 
         private void BtnCancel_LeftClick(object sender, EventArgs e)
         {
-            Disable();
+            Cancel();
         }
 
         private void BtnResetDefaults_LeftClick(object sender, EventArgs e)
@@ -176,6 +176,11 @@ namespace DTAClient.DXGUI.Multiplayer
         {
             Load();
             Enable();
+        }
+
+        public void Cancel()
+        {
+            Disable();
         }
     }
 }

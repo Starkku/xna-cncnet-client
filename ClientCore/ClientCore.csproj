@@ -252,6 +252,10 @@
     <Compile Include="CnCNet5\GameCollection.cs" />
     <Compile Include="ClientConfiguration.cs" />
     <Compile Include="CnCNet5\NameValidator.cs" />
+    <Compile Include="Enums\AllowPrivateMessagesFromEnum.cs" />
+    <Compile Include="Enums\SortDirection.cs" />
+    <Compile Include="Extensions\EnumExtensions.cs" />
+    <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="INIProcessing\IniPreprocessInfoStore.cs" />
     <Compile Include="INIProcessing\IniPreprocessor.cs" />
     <Compile Include="INIProcessing\PreprocessorBackgroundTask.cs" />
@@ -260,6 +264,7 @@
     <Compile Include="SavedGameManager.cs" />
     <Compile Include="Settings\IIniSetting.cs" />
     <Compile Include="Settings\IntRangeSetting.cs" />
+    <Compile Include="Settings\StringListSetting.cs" />
     <Compile Include="Settings\UserINISettings.cs" />
     <Compile Include="Settings\BoolSetting.cs" />
     <Compile Include="Settings\DoubleSetting.cs" />

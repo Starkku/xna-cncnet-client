@@ -1,7 +1,9 @@
 ﻿using ClientCore.Settings;
 using Rampastring.Tools;
 using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
+using ClientCore.Enums;
 
 namespace ClientCore
 {
@@ -103,6 +105,7 @@ namespace ClientCore
             AllowGameInvitesFromFriendsOnly = new BoolSetting(iniFile, MULTIPLAYER, "AllowGameInvitesFromFriendsOnly", false);
             NotifyOnUserListChange = new BoolSetting(iniFile, MULTIPLAYER, "NotifyOnUserListChange", true);
             DisablePrivateMessagePopups = new BoolSetting(iniFile, MULTIPLAYER, "DisablePrivateMessagePopups", false);
+            AllowPrivateMessagesFromState = new IntSetting(iniFile, MULTIPLAYER, "AllowPrivateMessagesFromState", (int)AllowPrivateMessagesFromEnum.All);
             EnableMapSharing = new BoolSetting(iniFile, MULTIPLAYER, "EnableMapSharing", true);
             AlwaysDisplayTunnelList = new BoolSetting(iniFile, MULTIPLAYER, "AlwaysDisplayTunnelList", false);
 
@@ -119,12 +122,14 @@ namespace ClientCore
             MinimizeWindowsOnGameStart = new BoolSetting(iniFile, OPTIONS, "MinimizeWindowsOnGameStart", true);
             AutoRemoveUnderscoresFromName = new BoolSetting(iniFile, OPTIONS, "AutoRemoveUnderscoresFromName", true);
 
-            SortAlpha = new BoolSetting(iniFile, GAME_FILTERS, "SortAlpha", false);
+            SortState = new IntSetting(iniFile, GAME_FILTERS, "SortState", (int)SortDirection.None);
             ShowFriendGamesOnly = new BoolSetting(iniFile, GAME_FILTERS, "ShowFriendGamesOnly", DEFAULT_SHOW_FRIENDS_ONLY_GAMES);
             HideLockedGames = new BoolSetting(iniFile, GAME_FILTERS, "HideLockedGames", DEFAULT_HIDE_LOCKED_GAMES);
             HidePasswordedGames = new BoolSetting(iniFile, GAME_FILTERS, "HidePasswordedGames", DEFAULT_HIDE_PASSWORDED_GAMES);
             HideIncompatibleGames = new BoolSetting(iniFile, GAME_FILTERS, "HideIncompatibleGames", DEFAULT_HIDE_INCOMPATIBLE_GAMES);
             MaxPlayerCount = new IntRangeSetting(iniFile, GAME_FILTERS, "MaxPlayerCount", DEFAULT_MAX_PLAYER_COUNT, 2, 8);
+
+            FavoriteMaps = new StringListSetting(iniFile, OPTIONS, "FavoriteMaps", new List<string>());
         }
 
         public IniFile SettingsIni { get; private set; }
@@ -197,6 +202,8 @@ namespace ClientCore
         public BoolSetting NotifyOnUserListChange { get; private set; }
 
         public BoolSetting DisablePrivateMessagePopups { get; private set; }
+        
+        public IntSetting AllowPrivateMessagesFromState { get; private set; }
 
         public BoolSetting EnableMapSharing { get; private set; }
 
@@ -206,7 +213,7 @@ namespace ClientCore
         /* GAME LIST FILTERS */
         /*********************/
 
-        public BoolSetting SortAlpha { get; private set; }
+        public IntSetting SortState { get; private set; }
         
         public BoolSetting ShowFriendGamesOnly { get; private set; }
         
@@ -242,11 +249,39 @@ namespace ClientCore
 
         public BoolSetting AutoRemoveUnderscoresFromName { get; private set; }
         
+        public StringListSetting FavoriteMaps { get; private set; }
+        
         public bool IsGameFollowed(string gameName)
         {
             return SettingsIni.GetBooleanValue("Channels", gameName, false);
         }
 
+        public bool ToggleFavoriteMap(string mapName, string gameModeName, bool isFavorite)
+        {
+            if (string.IsNullOrEmpty(mapName))
+                return isFavorite;
+
+            var favoriteMapKey = FavoriteMapKey(mapName, gameModeName);
+            isFavorite = IsFavoriteMap(mapName, gameModeName);
+            if (isFavorite)
+                FavoriteMaps.Remove(favoriteMapKey);
+            else
+                FavoriteMaps.Add(favoriteMapKey);
+            
+            Instance.SaveSettings();
+
+            return !isFavorite;
+        }
+
+        /// <summary>
+        /// Checks if a specified map name and game mode name belongs to the favorite map list.
+        /// </summary>
+        /// <param name="nameName">The name of the map.</param>
+        /// <param name="gameModeName">The name of the game mode</param>
+        public bool IsFavoriteMap(string nameName, string gameModeName) => FavoriteMaps.Value.Contains(FavoriteMapKey(nameName, gameModeName));
+
+        private string FavoriteMapKey(string nameName, string gameModeName) => $"{nameName}:{gameModeName}";
+        
         public void ReloadSettings()
         {
             SettingsIni.Reload();
@@ -286,6 +321,7 @@ namespace ClientCore
             Logger.Log("Writing settings INI.");
 
             ApplyDefaults();
+            // CleanUpLegacySettings();
 
             SettingsIni.WriteIniFile();
 
@@ -308,6 +344,14 @@ namespace ClientCore
             HideIncompatibleGames.Value = DEFAULT_HIDE_INCOMPATIBLE_GAMES;
             HidePasswordedGames.Value = DEFAULT_HIDE_PASSWORDED_GAMES;
             MaxPlayerCount.Value = DEFAULT_MAX_PLAYER_COUNT;
+        }
+
+        /// <summary>
+        /// Used to remove old sections/keys to avoid confusion when viewing the ini file directly.
+        /// </summary>
+        private void CleanUpLegacySettings()
+        {
+            SettingsIni.GetSection(GAME_FILTERS).RemoveKey("SortAlpha");
         }
     }
 }
