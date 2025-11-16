@@ -1607,10 +1607,10 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
                 teamStartMappings = PlayerExtraOptionsPanel.GetTeamStartMappings();
             }
 
+            int coopDifficultyLevel = GetCoopDifficultyLevel();
+
             PlayerHouseInfo[] houseInfos = Randomize(teamStartMappings);
-
             IniFile spawnIni = new IniFile(spawnerSettingsFile.FullName);
-
             IniSection settings = new IniSection("Settings");
 
             settings.SetStringValue("Name", ProgramConstants.PLAYERNAME);
@@ -1634,6 +1634,7 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
                 settings.SetBooleanValue("CoachMode", true);
             if (GetGameType() == GameType.Coop)
                 settings.SetBooleanValue("AutoSurrender", false);
+            settings.SetIntValue("CoopDifficultyLevel", coopDifficultyLevel); // Used to display difficulty in game loading lobby.
             spawnIni.AddSection(settings);
             WriteSpawnIniAdditions(spawnIni);
 
@@ -1658,7 +1659,7 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
 
             GameMode.ApplySpawnIniCode(spawnIni); // Forced options from the game mode
             Map.ApplySpawnIniCode(spawnIni, Players.Count + AIPlayers.Count,
-                AIPlayers.Count, GetCoopDifficultyLevel()); // Forced options from the map
+                AIPlayers.Count, coopDifficultyLevel); // Forced options from the map
 
             // Player options
 

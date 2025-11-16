@@ -2102,6 +2102,7 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
             sb.Append(skillLevel); // SkillLevel
             sb.Append(";");
             sb.Append(Map?.SHA1);
+            sb.Append(";");
             sb.Append(ddDifficulty?.SelectedIndex ?? -1);
 
             broadcastChannel.SendCTCPMessage(sb.ToString(), QueuedMessageType.SYSTEM_MESSAGE, 20);

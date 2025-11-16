@@ -719,6 +719,8 @@ namespace DTAClient.DXGUI.Multiplayer.CnCNet
             sb.Append(ClientConfiguration.Instance.DefaultSkillLevelIndex); // we don't know the original skill level
             sb.Append(";");
             sb.Append(string.Empty); // MapHash
+            sb.Append(";");
+            sb.Append(CoopDifficulty);
 
             broadcastChannel.SendCTCPMessage(sb.ToString(), QueuedMessageType.SYSTEM_MESSAGE, 20);
         }
