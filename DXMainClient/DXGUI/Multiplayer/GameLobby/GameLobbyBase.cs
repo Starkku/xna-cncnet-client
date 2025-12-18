@@ -1165,6 +1165,12 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
             if (btnPlayerExtraOptionsOpen != null)
             {
                 PlayerExtraOptionsPanel = FindChild<PlayerExtraOptionsPanel>(nameof(PlayerExtraOptionsPanel));
+
+                foreach (var child in PlayerExtraOptionsPanel.Children)
+                {
+                    ReadINIForControl(child);
+                }
+
                 PlayerExtraOptionsPanel.Disable();
                 PlayerExtraOptionsPanel.OptionsChanged += PlayerExtraOptions_OptionsChanged;
                 btnPlayerExtraOptionsOpen.LeftClick += BtnPlayerExtraOptions_LeftClick;
