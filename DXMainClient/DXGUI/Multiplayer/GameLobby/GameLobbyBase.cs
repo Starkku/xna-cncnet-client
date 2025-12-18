@@ -146,6 +146,8 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
         protected ToolTip mapListTooltip;
         protected XNAClientDropDown ddGameModeMapFilter;
         protected XNALabel lblGameModeSelect;
+        protected XNAClientDropDown ddDifficulty;
+        protected XNALabel lblDifficulty;
         protected XNAContextMenu mapContextMenu;
         private XNAContextMenuItem toggleFavoriteItem;
 
@@ -173,6 +175,7 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
         protected int UniqueGameID { get; set; }
         protected int SideCount { get; private set; }
         protected int RandomSelectorCount { get; private set; } = 1;
+        protected int PreviousSelectedDifficulty { get; set; }
 
         protected List<int[]> RandomSelectors = new List<int[]>();
 
@@ -298,6 +301,21 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
                 ddGameModeMapFilter.AddItem(CreateGameFilterItem(gm.UIName, new GameModeMapFilter(GetGameModeMaps(gm))));
 
             lblGameModeSelect = FindChild<XNALabel>(nameof(lblGameModeSelect));
+
+            ddDifficulty = FindChild<XNAClientDropDown>(nameof(ddDifficulty), true);
+            lblDifficulty = FindChild<XNALabel>(nameof(lblDifficulty), true);
+
+            if (ddDifficulty != null)
+            {
+                // Hardcode difficulty items just in case someone tries something stupid.
+                ddDifficulty.Items.Clear();
+
+                foreach (string difficultyName in ProgramConstants.DIFFICULTY_NAMES)
+                    ddDifficulty.AddItem(difficultyName);
+
+                ddDifficulty.SelectedIndex = -1;
+                ddDifficulty.SelectedIndexChanged += DdDifficulty_SelectedIndexChanged;
+            }
 
             InitBtnMapSort();
 
@@ -568,9 +586,23 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
             ListMaps();
 
             if (lbGameModeMapList.SelectedIndex == -1)
+            {
                 lbGameModeMapList.SelectedIndex = 0; // Select default GameModeMap
+                UpdateDifficultyDropdown();
+            }
             else
+            {
                 ChangeMap(GameModeMap);
+            }
+        }
+
+        protected void DdDifficulty_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (ddDifficulty.SelectedIndex >= 0)
+                PreviousSelectedDifficulty = ddDifficulty.SelectedIndex;
+
+            OnGameOptionChanged();
+            SetMapLabels();
         }
 
         protected void BtnPlayerExtraOptions_LeftClick(object sender, EventArgs e)
@@ -694,7 +726,7 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
                 {
                     // Note: StatisticsManager.Statistics must be initialized to call `HasBeatCoOpMap()`. This means StatisticsWindow must be initialized before any lobbies extending GameLobbyBase.
                     if (StatisticsManager.Instance.HasBeatCoOpMap(gameModeMap.Map.UntranslatedName, gameModeMap.GameMode.UntranslatedUIName))
-                        rankItem.Texture = RankTextures[Math.Abs(2 - gameModeMap.GameMode.CoopDifficultyLevel) + 1];
+                        rankItem.Texture = RankTextures[Math.Abs(2 - GetCoopDifficultyLevel()) + 1];
                     else
                         rankItem.Texture = RankTextures[0];
                 }
@@ -745,6 +777,45 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
             // Trigger the event manually to update GameModeMap
             if (gameModeMapChanged)
                 LbGameModeMapList_SelectedIndexChanged();
+        }
+
+        protected int GetCoopDifficultyLevel()
+        {
+            var gameMode = GameModeMap?.GameMode;
+
+            if (gameMode != null)
+            {
+                if (gameMode.UseDifficultyDropDown && ddDifficulty != null && ddDifficulty.SelectedIndex >= 0)
+                {
+                    return ddDifficulty.Items.Count - ddDifficulty.SelectedIndex - 1;
+                }
+                else
+                {
+                    return gameMode.CoopDifficultyLevel;
+                }
+            }
+            
+            return 0;
+        }
+
+        protected virtual void UpdateDifficultyDropdown()
+        {
+            bool enabled = GameModeMap != null && GameModeMap.GameMode != null && GameModeMap.GameMode.UseDifficultyDropDown;
+
+            if (ddDifficulty != null)
+            {
+                ddDifficulty.AllowDropDown = enabled;
+
+                if (enabled && ddDifficulty.SelectedIndex < 0)
+                    ddDifficulty.SelectedIndex = PreviousSelectedDifficulty;
+                else if (!enabled)
+                    ddDifficulty.SelectedIndex = -1;
+            }
+
+            if (lblDifficulty != null)
+            {
+                lblDifficulty.TextColor = enabled ? UISettings.ActiveSettings.TextColor : UISettings.ActiveSettings.DisabledItemColor;
+            }
         }
 
         protected abstract int GetDefaultMapRankIndex(GameModeMap gameModeMap);
@@ -1536,10 +1607,10 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
                 teamStartMappings = PlayerExtraOptionsPanel.GetTeamStartMappings();
             }
 
+            int coopDifficultyLevel = GetCoopDifficultyLevel();
+
             PlayerHouseInfo[] houseInfos = Randomize(teamStartMappings);
-
             IniFile spawnIni = new IniFile(spawnerSettingsFile.FullName);
-
             IniSection settings = new IniSection("Settings");
 
             settings.SetStringValue("Name", ProgramConstants.PLAYERNAME);
@@ -1563,6 +1634,7 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
                 settings.SetBooleanValue("CoachMode", true);
             if (GetGameType() == GameType.Coop)
                 settings.SetBooleanValue("AutoSurrender", false);
+            settings.SetIntValue("CoopDifficultyLevel", coopDifficultyLevel); // Used to display difficulty in game loading lobby.
             spawnIni.AddSection(settings);
             WriteSpawnIniAdditions(spawnIni);
 
@@ -1587,7 +1659,7 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
 
             GameMode.ApplySpawnIniCode(spawnIni); // Forced options from the game mode
             Map.ApplySpawnIniCode(spawnIni, Players.Count + AIPlayers.Count,
-                AIPlayers.Count, GameMode.CoopDifficultyLevel); // Forced options from the map
+                AIPlayers.Count, coopDifficultyLevel); // Forced options from the map
 
             // Player options
 
@@ -1812,6 +1884,23 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
                 // The code below only applies to the single player case
                 string mapIniFileName = Path.GetFileName(mapIni.FileName);
                 mapIni.SetStringValue("Basic", "OriginalFilename", mapIniFileName);
+            }
+
+            if (GameMode.UseDifficultyDropDown && ddDifficulty != null && ddDifficulty.SelectedIndex >= 0)
+            { 
+                var filePath = string.Empty;
+
+                try
+                {
+                    filePath = ClientConfiguration.Instance.CoopDifficultyINIPaths[ddDifficulty.SelectedIndex];
+                }
+                catch (IndexOutOfRangeException)
+                {
+                    Logger.Log($"CoopDifficultyINIPaths does not contain file path for difficulty index {ddDifficulty.SelectedIndex}");
+                }
+
+                IniFile difficultyIni = new IniFile(filePath);
+                MapCodeHelper.ApplyMapCode(mapIni, difficultyIni);
             }
 
             foreach (GameLobbyCheckBox checkBox in CheckBoxes)
@@ -2315,6 +2404,11 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
             lblMapAuthor.Text = "By".L10N("Client:Main:AuthorBy") + " " + Renderer.GetSafeString(Map.Author, lblMapAuthor.FontIndex);
             lblGameMode.Text = "Game mode:".L10N("Client:Main:GameModeLabel") + " " + GameMode.UIName;
             lblMapSize.Text = "Size:".L10N("Client:Main:MapSize") + " " + Map.GetSizeString();
+
+            if (GameMode.UseDifficultyDropDown && ddDifficulty != null && ddDifficulty.SelectedIndex >= 0)
+            {
+                lblGameMode.Text += " (" + "Difficulty: ".L10N("Client:Main:DifficultyLabel") + ddDifficulty.SelectedItem.Text + ")";
+            }
         }
 
         /// <summary>
@@ -2333,6 +2427,7 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
             {
                 MapPreviewBox.GameModeMap = null;
                 OnGameOptionChanged();
+                UpdateDifficultyDropdown();
                 return;
             }
 
@@ -2344,6 +2439,8 @@ namespace DTAClient.DXGUI.Multiplayer.GameLobby
 
             foreach (var checkBox in CheckBoxes)
                 checkBox.AllowChecking = true;
+
+            UpdateDifficultyDropdown();
 
             // We could either pass the CheckBoxes and DropDowns of this class
             // to the Map and GameMode instances and let them apply their forced
