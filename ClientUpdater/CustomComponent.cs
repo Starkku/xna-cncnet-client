@@ -46,6 +46,11 @@ public class CustomComponent
     public string ININame { get; internal set; }
 
     /// <summary>
+    /// Optional description for the custom component.
+    /// </summary>
+    public string Description { get; internal set; } = string.Empty;
+
+    /// <summary>
     /// Local file system path of custom component.
     /// </summary>
     public string LocalPath { get; internal set; }
@@ -266,7 +271,8 @@ public class CustomComponent
 
                     cancellationToken.ThrowIfCancellationRequested();
                     Logger.Log("CustomComponent: Archive " + archiveLocalPath + "_u is intact. Unpacking...");
-                    await CompressionHelper.DecompressFileAsync(archivePathFileInfo.FullName, finalFileNameTemp, downloadTaskCancelToken).ConfigureAwait(false);
+                    Action<double> progressCallback = percentage => { DownloadProgressChanged?.Invoke(this, true, (int)percentage); };
+                    await CompressionHelper.DecompressFileAsync(archivePathFileInfo.FullName, finalFileNameTemp, downloadTaskCancelToken, progressCallback).ConfigureAwait(false);
                     archivePathFileInfo.Delete();
                 }
 
@@ -402,7 +408,7 @@ public class CustomComponent
 
     public delegate void DownloadFinishedEventHandler(CustomComponent cc, bool success);
 
-    public delegate void DownloadProgressChangedEventHandler(CustomComponent cc, int percentage);
+    public delegate void DownloadProgressChangedEventHandler(CustomComponent cc, bool isUnpacking, int percentage);
 
     private void DoDownloadFinished(bool success) => DownloadFinished?.Invoke(this, success);
 
@@ -411,7 +417,7 @@ public class CustomComponent
         if (e.ProgressPercentage != currentDownloadPercentage)
         {
             currentDownloadPercentage = e.ProgressPercentage;
-            DownloadProgressChanged?.Invoke(this, currentDownloadPercentage);
+            DownloadProgressChanged?.Invoke(this, false, currentDownloadPercentage);
         }
     }
 }

@@ -31,9 +31,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using ClientUpdater.Compression;
-
+using ClientCore;
 using ClientCore.Extensions;
+
+using ClientUpdater.Compression;
 
 using Rampastring.Tools;
 
@@ -499,7 +500,7 @@ public static class Updater
             string maskString = updaterConfig.GetStringValue("Settings", "IgnoreMasks", string.Join(",", ignoreMasks));
             ignoreMasks = maskString.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-            List<string> keys = updaterConfig.GetSectionKeys("DownloadMirrors");
+            var keys = updaterConfig.GetSectionKeys("DownloadMirrors");
 
             if (keys != null)
             {
@@ -525,11 +526,15 @@ public static class Updater
             }
 
             keys = updaterConfig.GetSectionKeys("CustomComponents");
+            var descriptionKeys = updaterConfig.GetSectionKeys("CustomComponentDescriptions");
+            int index = -1;
 
             if (keys != null)
             {
                 foreach (string key in keys)
                 {
+                    index++;
+
                     if (string.IsNullOrEmpty(key))
                         continue;
 
@@ -556,7 +561,17 @@ public static class Updater
                             noArchiveExtensionForDownloadPath = Conversions.BooleanFromString(values[4], false);
 
                         bool DownloadPathIsAbsolute = Uri.IsWellFormedUriString(DownloadPath, UriKind.Absolute);
-                        customComponents.Add(new(Name, ID, DownloadPath, LocalPath, DownloadPathIsAbsolute, noArchiveExtensionForDownloadPath));
+                        CustomComponent component = new(Name, ID, DownloadPath, LocalPath, DownloadPathIsAbsolute, noArchiveExtensionForDownloadPath);
+
+                        string descriptionValue = updaterConfig.GetStringValue("CustomComponentDescriptions", key, string.Empty);
+
+                        if (string.IsNullOrEmpty(descriptionValue) && descriptionKeys.Count > index)
+                            descriptionValue = descriptionKeys[index];
+
+                        if (!string.IsNullOrEmpty(descriptionValue))
+                            component.Description = descriptionValue.FromIniString();
+
+                        customComponents.Add(component);
                     }
                 }
             }
@@ -1514,18 +1529,19 @@ public static class Updater
                     }
                 }
 
-                OnFileDownloadCompleted?.Invoke(fileInfo.Archived ? filename + extraExtension : null);
                 Logger.Log("Updater: Download of file " + filename + extraExtension + " finished - verifying.");
 
                 if (fileInfo.Archived)
                 {
+                    OnArchiveUnpackProgressChanged?.Invoke(0);
                     Logger.Log("Updater: File is an archive.");
                     string archiveIdentifier = CheckFileIdentifiers(filename, fileRelativePath, fileInfo.ArchiveIdentifier);
 
                     if (string.IsNullOrEmpty(archiveIdentifier))
                     {
                         Logger.Log("Updater: Archive " + filename + extraExtension + " is intact. Unpacking...");
-                        await CompressionHelper.DecompressFileAsync(downloadFile.FullName, decompressedFile.FullName).ConfigureAwait(false);
+                        Action<double> progressCallback = percentage => { OnArchiveUnpackProgressChanged?.Invoke((int)percentage); };
+                        await CompressionHelper.DecompressFileAsync(downloadFile.FullName, decompressedFile.FullName, default, progressCallback).ConfigureAwait(false);
                         downloadFile.Delete();
                     }
                     else
@@ -1673,7 +1689,7 @@ public static class Updater
 
     public static event NoParamEventHandler OnVersionStateChanged;
 
-    public static event FileDownloadCompletedEventHandler OnFileDownloadCompleted;
+    public static event ArchiveUnpackProgressChangedEventHandler OnArchiveUnpackProgressChanged;
 
     public static event EventHandler Restart;
 
@@ -1687,7 +1703,7 @@ public static class Updater
 
     public delegate void UpdateProgressChangedCallback(string currFileName, int currFilePercentage, int totalPercentage);
 
-    public delegate void FileDownloadCompletedEventHandler(string archiveName);
+    public delegate void ArchiveUnpackProgressChangedEventHandler(int percentage);
 
     private static void ProgressMessageHandlerOnHttpReceiveProgress(object sender, HttpProgressEventArgs e) => UpdateDownloadProgress(e.ProgressPercentage);
 
