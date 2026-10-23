@@ -31,9 +31,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using ClientUpdater.Compression;
-
+using ClientCore;
 using ClientCore.Extensions;
+
+using ClientUpdater.Compression;
 
 using Rampastring.Tools;
 
@@ -499,7 +500,7 @@ public static class Updater
             string maskString = updaterConfig.GetStringValue("Settings", "IgnoreMasks", string.Join(",", ignoreMasks));
             ignoreMasks = maskString.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-            List<string> keys = updaterConfig.GetSectionKeys("DownloadMirrors");
+            var keys = updaterConfig.GetSectionKeys("DownloadMirrors");
 
             if (keys != null)
             {
@@ -525,11 +526,15 @@ public static class Updater
             }
 
             keys = updaterConfig.GetSectionKeys("CustomComponents");
+            var descriptionKeys = updaterConfig.GetSectionKeys("CustomComponentDescriptions");
+            int index = -1;
 
             if (keys != null)
             {
                 foreach (string key in keys)
                 {
+                    index++;
+
                     if (string.IsNullOrEmpty(key))
                         continue;
 
@@ -556,7 +561,17 @@ public static class Updater
                             noArchiveExtensionForDownloadPath = Conversions.BooleanFromString(values[4], false);
 
                         bool DownloadPathIsAbsolute = Uri.IsWellFormedUriString(DownloadPath, UriKind.Absolute);
-                        customComponents.Add(new(Name, ID, DownloadPath, LocalPath, DownloadPathIsAbsolute, noArchiveExtensionForDownloadPath));
+                        CustomComponent component = new(Name, ID, DownloadPath, LocalPath, DownloadPathIsAbsolute, noArchiveExtensionForDownloadPath);
+
+                        string descriptionValue = updaterConfig.GetStringValue("CustomComponentDescriptions", key, string.Empty);
+
+                        if (string.IsNullOrEmpty(descriptionValue) && descriptionKeys.Count > index)
+                            descriptionValue = descriptionKeys[index];
+
+                        if (!string.IsNullOrEmpty(descriptionValue))
+                            component.Description = descriptionValue.FromIniString();
+
+                        customComponents.Add(component);
                     }
                 }
             }

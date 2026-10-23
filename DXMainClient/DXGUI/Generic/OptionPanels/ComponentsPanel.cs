@@ -29,51 +29,59 @@ namespace DTAClient.DXGUI.Generic.OptionPanels
 
             Name = "ComponentsPanel";
 
-            int componentIndex = 0;
+            int previousY = 0;
 
             if (Updater.CustomComponents == null)
                 return;
 
-            foreach (CustomComponent c in Updater.CustomComponents)
+            foreach (CustomComponent component in Updater.CustomComponents)
             {
                 string buttonText = "Not Available".L10N("Client:DTAConfig:NotAvailable");
 
-                if (SafePath.GetFile(ProgramConstants.GamePath, c.LocalPath).Exists)
+                if (SafePath.GetFile(ProgramConstants.GamePath, component.LocalPath).Exists)
                 {
                     buttonText = "Uninstall".L10N("Client:DTAConfig:Uninstall");
 
-                    if (c.LocalIdentifier != c.RemoteIdentifier)
+                    if (component.LocalIdentifier != component.RemoteIdentifier)
                         buttonText = "Update".L10N("Client:DTAConfig:Update");
                 }
                 else
                 {
-                    if (!string.IsNullOrEmpty(c.RemoteIdentifier))
+                    if (!string.IsNullOrEmpty(component.RemoteIdentifier))
                         buttonText = "Install".L10N("Client:DTAConfig:Install");
                 }
 
                 XNAClientButton btn = new(WindowManager)
                 {
-                    Name = "btn" + c.ININame,
+                    Name = "btn" + component.ININame,
                     ClientRectangle = new Rectangle(Width - 145,
-                        12 + componentIndex * 35, UIDesignConstants.BUTTON_WIDTH_133, UIDesignConstants.BUTTON_HEIGHT),
+                        12 + previousY, UIDesignConstants.BUTTON_WIDTH_133, UIDesignConstants.BUTTON_HEIGHT),
                     Text = buttonText,
-                    Tag = c
+                    Tag = component
                 };
                 btn.LeftClick += Btn_LeftClick;
-
-                XNALabel lbl = new(WindowManager)
-                {
-                    Name = "lbl" + c.ININame,
-                    ClientRectangle = new Rectangle(12, btn.Y + 2, 0, 0),
-                    Text = c.GUIName
-                };
-
                 AddChild(btn);
-                AddChild(lbl);
 
+                XNALabel lblName = new(WindowManager)
+                {
+                    Name = "lblName" + component.ININame,
+                    ClientRectangle = new Rectangle(12, btn.Y + 2, 0, 0),
+                    Text = component.GUIName.L10N($"INI:CustomComponent:{component.ININame}:GUIName"),
+                    FontIndex = 1
+                };
+                AddChild(lblName);
+
+                XNALabel lblDesc = new(WindowManager)
+                {
+                    Name = "lblDesc" + component.ININame,
+                    ClientRectangle = new Rectangle(lblName.X, lblName.Bottom + UIDesignConstants.CONTROL_VERTICAL_MARGIN, 0, 0),
+                    Text = component.Description.L10N($"INI:CustomComponent:{component.ININame}:Description"),
+                    TextColor = UISettings.ActiveSettings.SubtleTextColor
+                };
+                AddChild(lblDesc);
+
+                previousY = lblDesc.Bottom;
                 installationButtons.Add(btn);
-
-                componentIndex++;
             }
 
             Updater.FileIdentifiersUpdated += Updater_FileIdentifiersUpdated;

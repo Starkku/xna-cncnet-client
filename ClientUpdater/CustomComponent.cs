@@ -46,6 +46,11 @@ public class CustomComponent
     public string ININame { get; internal set; }
 
     /// <summary>
+    /// Optional description for the custom component.
+    /// </summary>
+    public string Description { get; internal set; } = string.Empty;
+
+    /// <summary>
     /// Local file system path of custom component.
     /// </summary>
     public string LocalPath { get; internal set; }
