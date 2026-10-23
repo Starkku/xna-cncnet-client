@@ -27,7 +27,7 @@ namespace DTAClient.DXGUI.Generic
         public event UpdateFailureEventHandler UpdateFailed;
 
         delegate void UpdateProgressChangedDelegate(string fileName, int filePercentage, int totalPercentage);
-        delegate void FileDownloadCompletedDelegate(string archiveName);
+        delegate void ArchiveUnpackProgressChangedDelegate(int percentage);
 
         private const double DOT_TIME = 0.66;
         private const int MAX_DOTS = 5;
@@ -140,7 +140,7 @@ namespace DTAClient.DXGUI.Generic
             Updater.OnUpdateFailed += Updater_OnUpdateFailed;
             Updater.UpdateProgressChanged += Updater_UpdateProgressChanged;
             Updater.LocalFileCheckProgressChanged += Updater_LocalFileCheckProgressChanged;
-            Updater.OnFileDownloadCompleted += Updater_OnFileDownloadCompleted;
+            Updater.OnArchiveUnpackProgressChanged += Updater_ArchiveUnpackProgressChanged;
 #if WINFORMS
 
             tbp = new TaskbarProgress();
@@ -237,14 +237,14 @@ namespace DTAClient.DXGUI.Generic
 #endif
         }
 
-        private void Updater_OnFileDownloadCompleted(string archiveName)
+        private void Updater_ArchiveUnpackProgressChanged(int percentage)
         {
-            AddCallback(new FileDownloadCompletedDelegate(HandleFileDownloadCompleted), archiveName);
+            AddCallback(new ArchiveUnpackProgressChangedDelegate(HandleArchiveUnpackProgressChanged), percentage);
         }
 
-        private void HandleFileDownloadCompleted(string archiveName)
+        private void HandleArchiveUnpackProgressChanged(int percentage)
         {
-            lblUpdaterStatus.Text = "Unpacking archive".L10N("Client:Main:UnpackingArchive");
+            lblUpdaterStatus.Text = "Unpacking archive".L10N("Client:Main:UnpackingArchive") + " " + percentage + "%"; ;
         }
 
         private void Updater_OnUpdateCompleted()

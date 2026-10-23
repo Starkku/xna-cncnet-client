@@ -212,19 +212,19 @@ namespace DTAClient.DXGUI.Generic.OptionPanels
         /// </summary>
         /// <param name="c">The CustomComponent object.</param>
         /// <param name="percentage">The current download progress percentage.</param>
-        private void cc_DownloadProgressChanged(CustomComponent c, int percentage)
+        private void cc_DownloadProgressChanged(CustomComponent c, bool isUnpacking, int percentage)
         {
-            WindowManager.AddCallback(new Action<CustomComponent, int>(HandleDownloadProgressChanged), c, percentage);
+            WindowManager.AddCallback(new Action<CustomComponent, bool, int>(HandleDownloadProgressChanged), c, isUnpacking, percentage);
         }
 
-        private void HandleDownloadProgressChanged(CustomComponent cc, int percentage)
+        private void HandleDownloadProgressChanged(CustomComponent cc, bool isUnpacking, int percentage)
         {
             percentage = Math.Min(percentage, 100);
 
             var btn = installationButtons.Find(b => object.ReferenceEquals(b.Tag, cc));
 
-            if (cc.Archived && percentage == 100)
-                btn.Text = "Unpacking...".L10N("Client:DTAConfig:Unpacking");
+            if (isUnpacking)
+                btn.Text = "Unpacking...".L10N("Client:DTAConfig:Unpacking") + " " + percentage + "%";
             else
                 btn.Text = "Downloading...".L10N("Client:DTAConfig:Downloading") + " " + percentage + "%";
         }

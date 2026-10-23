@@ -1529,18 +1529,19 @@ public static class Updater
                     }
                 }
 
-                OnFileDownloadCompleted?.Invoke(fileInfo.Archived ? filename + extraExtension : null);
                 Logger.Log("Updater: Download of file " + filename + extraExtension + " finished - verifying.");
 
                 if (fileInfo.Archived)
                 {
+                    OnArchiveUnpackProgressChanged?.Invoke(0);
                     Logger.Log("Updater: File is an archive.");
                     string archiveIdentifier = CheckFileIdentifiers(filename, fileRelativePath, fileInfo.ArchiveIdentifier);
 
                     if (string.IsNullOrEmpty(archiveIdentifier))
                     {
                         Logger.Log("Updater: Archive " + filename + extraExtension + " is intact. Unpacking...");
-                        await CompressionHelper.DecompressFileAsync(downloadFile.FullName, decompressedFile.FullName).ConfigureAwait(false);
+                        Action<double> progressCallback = percentage => { OnArchiveUnpackProgressChanged?.Invoke((int)percentage); };
+                        await CompressionHelper.DecompressFileAsync(downloadFile.FullName, decompressedFile.FullName, default, progressCallback).ConfigureAwait(false);
                         downloadFile.Delete();
                     }
                     else
@@ -1688,7 +1689,7 @@ public static class Updater
 
     public static event NoParamEventHandler OnVersionStateChanged;
 
-    public static event FileDownloadCompletedEventHandler OnFileDownloadCompleted;
+    public static event ArchiveUnpackProgressChangedEventHandler OnArchiveUnpackProgressChanged;
 
     public static event EventHandler Restart;
 
@@ -1702,7 +1703,7 @@ public static class Updater
 
     public delegate void UpdateProgressChangedCallback(string currFileName, int currFilePercentage, int totalPercentage);
 
-    public delegate void FileDownloadCompletedEventHandler(string archiveName);
+    public delegate void ArchiveUnpackProgressChangedEventHandler(int percentage);
 
     private static void ProgressMessageHandlerOnHttpReceiveProgress(object sender, HttpProgressEventArgs e) => UpdateDownloadProgress(e.ProgressPercentage);
 

@@ -20,6 +20,8 @@ using System.Buffers.Binary;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+
+using SevenZip;
 using SevenZip.Compression.LZMA;
 
 /// <summary>
@@ -27,12 +29,34 @@ using SevenZip.Compression.LZMA;
 /// </summary>
 public static class CompressionHelper
 {
+    private sealed class CodeProgress : ICodeProgress
+    {
+        private readonly long _totalBytes;
+        private readonly Action<double> _progressCallback;
+
+        public CodeProgress(long totalBytes, Action<double> progressCallback)
+        {
+            _totalBytes = totalBytes;
+            _progressCallback = progressCallback;
+        }
+
+        public void SetProgress(long inSize, long outSize)
+        {
+            if (_totalBytes <= 0)
+                return;
+
+            double percentage = (double)outSize / _totalBytes * 100.0;
+
+            _progressCallback(Math.Min(percentage, 100.0));
+        }
+    }
+
     /// <summary>
     /// Compress file using LZMA.
     /// </summary>
     /// <param name="inputFilename">Input file path.</param>
     /// <param name="outputFilename">Output file path.</param>
-    public static async ValueTask CompressFileAsync(string inputFilename, string outputFilename, CancellationToken cancellationToken = default)
+    public static async ValueTask CompressFileAsync(string inputFilename, string outputFilename, CancellationToken cancellationToken = default, Action<double>? progressCallback = null)
     {
         var encoder = new Encoder(cancellationToken);
         var inputStream = new FileStream(inputFilename, FileMode.Open, FileAccess.Read, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -46,8 +70,9 @@ public static class CompressionHelper
                 encoder.WriteCoderProperties(outputStream);
                 byte[] lengthBytes = new byte[sizeof(long)];
                 BinaryPrimitives.WriteInt64LittleEndian(lengthBytes, inputStream.Length);
+                var progress = progressCallback is not null ? new CodeProgress(inputStream.Length, progressCallback) : null;
                 await outputStream.WriteAsync(lengthBytes.AsMemory(0, sizeof(long)), cancellationToken).ConfigureAwait(false);
-                encoder.Code(inputStream, outputStream, inputStream.Length, outputStream.Length, null);
+                encoder.Code(inputStream, outputStream, inputStream.Length, outputStream.Length, progress);
             }
         }
     }
@@ -57,10 +82,9 @@ public static class CompressionHelper
     /// </summary>
     /// <param name="inputFilename">Input file path.</param>
     /// <param name="outputFilename">Output file path.</param>
-    public static async ValueTask DecompressFileAsync(string inputFilename, string outputFilename, CancellationToken cancellationToken = default)
+    public static async ValueTask DecompressFileAsync(string inputFilename, string outputFilename, CancellationToken cancellationToken = default, Action<double>? progressCallback = null)
     {
         var decoder = new Decoder(cancellationToken);
-
         var inputStream = new FileStream(inputFilename, FileMode.Open, FileAccess.Read, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
 
         using (inputStream)
@@ -76,9 +100,10 @@ public static class CompressionHelper
                 await inputStream.ReadAsync(fileLengthArray, cancellationToken).ConfigureAwait(false);
 
                 long fileLength = BinaryPrimitives.ReadInt64LittleEndian(fileLengthArray);
+                var progress = progressCallback is not null ? new CodeProgress(fileLength, progressCallback) : null;
 
                 decoder.SetDecoderProperties(properties);
-                decoder.Code(inputStream, outputStream, inputStream.Length, fileLength, null);
+                decoder.Code(inputStream, outputStream, inputStream.Length, fileLength, progress);
             }
         }
     }

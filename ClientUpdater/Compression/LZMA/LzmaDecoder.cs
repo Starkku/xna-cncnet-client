@@ -265,14 +265,24 @@ namespace SevenZip.Compression.LZMA
 				m_OutWindow.PutByte(b);
 				nowPos64++;
 			}
-			while (nowPos64 < outSize64)
+
+            const uint ProgressUpdateInterval = 1 << 18; // 256 KiB
+            UInt64 nextProgressUpdate = ProgressUpdateInterval;
+
+            while (nowPos64 < outSize64)
 			{
 				if (cancellationToken != null)
 					cancellationToken.ThrowIfCancellationRequested();
 
-				// UInt64 next = Math.Min(nowPos64 + (1 << 18), outSize64);
-				// while(nowPos64 < next)
-				{
+                if (progress != null && nowPos64 >= nextProgressUpdate)
+                {
+                    progress.SetProgress(0, (long)nowPos64);
+                    nextProgressUpdate = nowPos64 + ProgressUpdateInterval;
+                }
+
+                // UInt64 next = Math.Min(nowPos64 + (1 << 18), outSize64);
+                // while(nowPos64 < next)
+                {
 					uint posState = (uint)nowPos64 & m_PosStateMask;
 					if (m_IsMatchDecoders[(state.Index << Base.kNumPosStatesBitsMax) + posState].Decode(m_RangeDecoder) == 0)
 					{
